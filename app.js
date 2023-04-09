@@ -2,13 +2,6 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-async function scrollToBottom(page) {
-    await page.evaluate(() => {
-        window.scrollBy(0, document.body.scrollHeight);
-    });
-    await page.waitForTimeout(1000);
-}
-
 async function clickElements(page) {
     await page.locator('xpath=/html/body/div[1]/div/div/div/div[2]/div/button[2]').click(); // Cookies disclaimer
     await page.locator('xpath=/html/body/div[2]/div[2]/div[1]/button').click(); // Discount banner
@@ -21,25 +14,21 @@ async function removeElements(page) {
         '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/section', // Download PDF top bar
         '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/div[1]', // Header bloat buttons
         //'/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/aside' // Float pdf download bar
+        
     ];
 
     for (const xpath of xpaths) {
-        try {
-            await page.waitForSelector(`xpath=${xpath}`, { state: 'visible', timeout: 5000 });
-            await page.evaluate((path) => {
-                const element = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-                if (element && element.parentNode) {
-                    element.parentNode.removeChild(element);
-                }
-            }, xpath);
-        } catch (error) {
-            console.log(`Timeout error while trying to remove element with xpath ${xpath}. Continuing with the next element.`);
-        }
+        await page.waitForSelector(`xpath=${xpath}`, { timeout: 5000 });
+        await page.evaluate((path) => {
+            const element = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            if (element && element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+        }, xpath);
     }
 }
 
 async function takeScreenshot(page, xpath, folderName, screenshotName) {
-    await scrollToBottom(page);
     await clickElements(page);
     await removeElements(page);
     await page.locator(`xpath=${xpath}`).screenshot({ path: path.join(folderName, `${screenshotName}.png`) });
