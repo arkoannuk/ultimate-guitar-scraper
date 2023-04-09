@@ -1,0 +1,81 @@
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+
+async function scrollToBottom(page) {
+    await page.evaluate(() => {
+        window.scrollBy(0, document.body.scrollHeight);
+    });
+    await page.waitForTimeout(1000);
+}
+
+async function clickElements(page) {
+    await page.locator('xpath=/html/body/div[1]/div/div/div/div[2]/div/button[2]').click(); // Cookies disclaimer
+    await page.locator('xpath=/html/body/div[2]/div[2]/div[1]/button').click(); // Discount banner
+    await page.locator('xpath=/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/div/div/div[1]/div[2]').click(); // Guitar Video
+}
+
+async function removeElements(page) {
+    const xpaths = [
+        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/section[5]', // Autoscroll bar
+        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/section', // Download PDF top bar
+        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/div[1]', // Header bloat buttons
+        //'/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/aside' // Float pdf download bar
+    ];
+
+    for (const xpath of xpaths) {
+        try {
+            await page.waitForSelector(`xpath=${xpath}`, { state: 'visible', timeout: 5000 });
+            await page.evaluate((path) => {
+                const element = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+                if (element && element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
+            }, xpath);
+        } catch (error) {
+            console.log(`Timeout error while trying to remove element with xpath ${xpath}. Continuing with the next element.`);
+        }
+    }
+}
+
+async function takeScreenshot(page, xpath, folderName, screenshotName) {
+    await scrollToBottom(page);
+    await clickElements(page);
+    await removeElements(page);
+    await page.locator(`xpath=${xpath}`).screenshot({ path: path.join(folderName, `${screenshotName}.png`) });
+}
+
+async function scrapePage(url, xpath, folderName, screenshotName) {
+    const browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.goto(url);
+
+    await takeScreenshot(page, xpath, folderName, screenshotName);
+
+    await browser.close();
+}
+
+async function main() {
+    const xpaths = [
+        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/section[3]/div',
+        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]',
+        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/section[1]/div'
+    ];
+
+    const screenshotNames = ['Sheet', 'Title', 'Chords'];
+
+    const urls = fs.readFileSync('pages.txt', 'utf-8').split('\n').filter(url => url.trim() !== '');
+
+    for (const url of urls) {
+        const folderName = `pages/${url.replace(/https?:\/\/|www\.|[^a-zA-Z0-9-_]/g, '')}`;
+        fs.mkdirSync(folderName, { recursive: true });
+
+        for (let i = 0; i < xpaths.length; i++) {
+            await scrapePage(url, xpaths[i], folderName, screenshotNames[i]);
+        }
+    }
+}
+
+main();
