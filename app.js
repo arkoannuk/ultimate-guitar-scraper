@@ -3,36 +3,61 @@ const fs = require('fs');
 const path = require('path');
 
 async function clickElements(page) {
-    await page.locator('xpath=/html/body/div[1]/div/div/div/div[2]/div/button[2]').click(); // Cookies disclaimer
-    await page.locator('xpath=/html/body/div[2]/div[2]/div[1]/button').click(); // Discount banner
-    await page.locator('xpath=/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/div/div/div[1]/div[2]').click(); // Guitar Video
+    const clickSelectors = [
+        'xpath=/html/body/div[1]/div/div/div/div[2]/div/button[2]', // Cookies disclaimer
+        'xpath=/html/body/div[2]/div[2]/div[1]/button', // Discount banner
+        'xpath=/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/div/div/div[1]/div[2]', // Guitar Video
+    ];
+
+    for (const selector of clickSelectors) {
+        try {
+            await page.waitForSelector(selector, { timeout: 3000 });
+            await page.locator(selector).click();
+        } catch (error) {
+            console.log(`Element not found for selector: ${selector}`);
+        }
+    }
 }
+
 
 async function removeElements(page) {
     const xpaths = [
         '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/section[5]', // Autoscroll bar
         '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/section', // Download PDF top bar
         '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/div[1]', // Header bloat buttons
-        //'/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/aside' // Float pdf download bar
-        
+        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/aside/div' // Float pdf download bar     
     ];
 
     for (const xpath of xpaths) {
-        await page.waitForSelector(`xpath=${xpath}`, { timeout: 5000 });
-        await page.evaluate((path) => {
-            const element = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-            if (element && element.parentNode) {
-                element.parentNode.removeChild(element);
-            }
-        }, xpath);
+        try {
+            await page.waitForSelector(`xpath=${xpath}`, { timeout: 3000 });
+            await page.evaluate((path) => {
+                const element = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+                if (element && element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
+            }, xpath);
+        } catch (error) {
+            console.log(`Element not found for xpath: ${xpath}`);
+        }
     }
+}
+
+
+async function scrollToMiddle(page) {
+    await page.evaluate(() => {
+        const middleY = document.documentElement.scrollHeight / 3;
+        window.scrollTo(0, middleY);
+    });
 }
 
 async function takeScreenshot(page, xpath, folderName, screenshotName) {
     await clickElements(page);
+    await scrollToMiddle(page);
     await removeElements(page);
     await page.locator(`xpath=${xpath}`).screenshot({ path: path.join(folderName, `${screenshotName}.png`) });
 }
+
 
 async function scrapePage(url, xpath, folderName, screenshotName) {
     const browser = await chromium.launch({ headless: true });
