@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
+
 async function clickElements(page) {
     const clickSelectors = [
         'xpath=/html/body/div[1]/div/div/div/div[2]/div/button[2]', // Cookies disclaimer
@@ -24,8 +25,7 @@ async function removeElements(page) {
     const xpaths = [
         '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/section[5]', // Autoscroll bar
         '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/section', // Download PDF top bar
-        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/div[1]', // Header bloat buttons
-        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/aside/div' // Float pdf download bar     
+        '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[1]/div[1]', // Header bloat buttons   
     ];
 
     for (const xpath of xpaths) {
@@ -44,29 +44,49 @@ async function removeElements(page) {
 }
 
 
-async function scrollToMiddle(page) {
-    await page.evaluate(() => {
-        const middleY = document.documentElement.scrollHeight / 3;
-        window.scrollTo(0, middleY);
-    });
+async function scrollToMiddle(page, scroll) {
+    if (scroll) {
+        await page.evaluate(() => {
+            const middleY = document.documentElement.scrollHeight / 3;
+            window.scrollTo(0, middleY);
+        });
+    }
+    
+    // Remove the floating PDF bar again
+    const floatingPdfBarXpath = '/html/body/div[2]/div[2]/main/div[2]/article[1]/section[2]/article/aside/div';
+    try {
+        await page.waitForSelector(`xpath=${floatingPdfBarXpath}`, { timeout: 3000 });
+        await page.evaluate((path) => {
+            const element = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            if (element && element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+        }, floatingPdfBarXpath);
+    } catch { }
 }
 
-async function takeScreenshot(page, xpath, folderName, screenshotName) {
+async function takeScreenshot(page, xpath, folderName, screenshotName, scroll) {
     await clickElements(page);
-    await scrollToMiddle(page);
     await removeElements(page);
-    await page.locator(`xpath=${xpath}`).screenshot({ path: path.join(folderName, `${screenshotName}.png`) });
+    await scrollToMiddle(page, scroll);
+
+    // Wait for the specific element to be available before taking the screenshot
+    try {
+        await page.waitForSelector(`xpath=${xpath}`, { timeout: 10000 }); // Increase the timeout if needed
+        await page.locator(`xpath=${xpath}`).screenshot({ path: path.join(folderName, `${screenshotName}.png`) });
+    } catch (error) {
+        console.log(`Failed to take scregenshot for: ${screenshotName}. Error: ${error.message}`);
+    }
 }
 
-
-async function scrapePage(url, xpath, folderName, screenshotName) {
-    const browser = await chromium.launch({ headless: true });
+async function scrapePage(url, xpath, folderName, screenshotName, scroll) {
+    const browser = await chromium.launch({ headless: false });
     const context = await browser.newContext();
     const page = await context.newPage();
 
     await page.goto(url);
 
-    await takeScreenshot(page, xpath, folderName, screenshotName);
+    await takeScreenshot(page, xpath, folderName, screenshotName, scroll);
 
     await browser.close();
 }
@@ -87,7 +107,8 @@ async function main() {
         fs.mkdirSync(folderName, { recursive: true });
 
         for (let i = 0; i < xpaths.length; i++) {
-            await scrapePage(url, xpaths[i], folderName, screenshotNames[i]);
+            const scroll = (i === 0);
+            await scrapePage(url, xpaths[i], folderName, screenshotNames[i], scroll);
         }
     }
 }
