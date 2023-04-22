@@ -80,7 +80,7 @@ async function takeScreenshot(page, xpath, folderName, screenshotName, scroll) {
 }
 
 async function scrapePage(url, xpath, folderName, screenshotName, scroll) {
-    const browser = await chromium.launch({ headless: false });
+    const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
     const page = await context.newPage();
 
@@ -114,3 +114,5 @@ async function main() {
 }
 
 main();
+
+// "node app.js" to run
