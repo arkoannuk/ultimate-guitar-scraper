@@ -1,5 +1,7 @@
 # ultimate-guitar-scraper
 
+Build using the Playwright JS library
+
 Specify url's in pages.txt to scrape assets from tabs.ultimate-guitar.com
 
 Each link will return the following 3 images under an unique sub-folder in /pages:
