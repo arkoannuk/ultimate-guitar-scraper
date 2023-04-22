@@ -1,15 +1,17 @@
 # ultimate-guitar-scraper
 
-Build using the Playwright JS library
+Built using the Playwright JS library
 
-Specify url's in pages.txt to scrape assets from tabs.ultimate-guitar.com
+Specify url's in pages.txt to scrape assets from https://tabs.ultimate-guitar.com/
 
-Each link will return the following 3 images under an unique sub-folder in /pages:
-- Title
-- Chords used
-- Sheet
+![image](https://user-images.githubusercontent.com/102264372/233806358-c1aa8394-a972-481b-9c6c-553d3519422e.png)
 
-Enter in terminal `node app.js` to run
+From each link, 3 images are saved under an unique sub-folder in /pages:
+
+![image](https://user-images.githubusercontent.com/102264372/233806304-75670a8f-8bbc-4daf-b321-c28ae5106f9c.png)
+
+
+Run in terminal `node app.js` to initiate script
 
 Scraped assets can be used to easily edit a printable PDF together:
 
